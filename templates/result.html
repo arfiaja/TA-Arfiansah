@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Hasil Deteksi Tajwid</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .image-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .bounding-box {
+            position: absolute;
+            border: 2px solid;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
+        }
+
+        .bounding-box:hover::after {
+            content: attr(data-label);
+            position: absolute;
+            top: -25px;
+            left: 0;
+            background: black;
+            color: white;
+            padding: 3px 7px;
+            font-size: 12px;
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        #result-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+
+        /* Dihapus: .legend-container { margin-top: 30px; } */
+        /* Kita akan atur jarak lewat grid */
+
+        .legend-badge {
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 14px;
+            display: inline-block;
+        }
+
+        .tajwid-title {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .card {
+            border-radius: 10px;
+        }
+
+        /* Tambahan: Pastikan legenda tetap rapi di kolomnya */
+        .legend-card {
+            position: sticky;
+            top: 20px; /* Membuat legenda 'mengambang' saat scroll */
+        }
+
+    </style>
+</head>
+<body class="bg-light">
+
+    <div class="container mt-5">
+        <div class="text-center mb-4">
+            <h2 class="tajwid-title">Hasil Deteksi Tajwid</h2>
+            <p class="text-muted">Gambar dengan hukum tajwid yang terdeteksi dari YOLOv8</p>
+        </div>
+
+        <div class="row align-items-start">
+            <div class="col-lg-8">
+                <div class="text-center image-container">
+                    <img id="result-img" src="{{ original }}" alt="Result" />
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card p-3 legend-card">
+                    <h5 class="mb-3">Legenda Warna Hukum Tajwid:</h5>
+                    <div id="legend" class="d-flex flex-wrap">
+                        </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const image = document.getElementById('result-img');
+        const container = document.querySelector('.image-container');
+        const legendContainer = document.getElementById('legend');
+
+        fetch(`/results_data/{{ original_filename }}`)
+            .then(response => response.json())
+            .then(data => {
+                const seenLabels = {};
+
+                data.forEach(box => {
+                    const div = document.createElement('div');
+                    div.className = 'bounding-box';
+                    div.style.left = box.x1 + 'px';
+                    div.style.top = box.y1 + 'px';
+                    div.style.width = (box.x2 - box.x1) + 'px';
+                    div.style.height = (box.y2 - box.y1) + 'px';
+                    div.style.borderColor = box.color;
+                    div.setAttribute('data-label', box.label);
+                    container.appendChild(div);
+
+                    // Tambahkan ke legenda jika belum ada
+                    if (!seenLabels[box.label]) {
+                        seenLabels[box.label] = box.color;
+
+                        const badge = document.createElement('span');
+                        badge.className = 'legend-badge text-white';
+                        badge.style.backgroundColor = box.color;
+                        badge.innerText = box.label;
+                        legendContainer.appendChild(badge);
+                    }
+                });
+            });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ngajiwir - Deteksi Tajwid</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+        .main-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #28a745;
+            border-radius: 10px;
+            padding: 70px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 20px 0;
+        }
+        .upload-area:hover {
+            background-color: #f8fff8;
+        }
+        .upload-icon {
+            font-size: 50px;
+            color: #28a745;
+            margin-bottom: 20px;
+        }
+        .drop-text {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        .app-title {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .btn-submit {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .btn-submit:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+        }
+        .flash-message {
+            margin-top: 10px;
+        }
+        #preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            margin-top: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .file-selected {
+            display: none;
+            margin-top: 10px;
+            font-style: italic;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="main-container">
+                <h1 class="text-center app-title mb-4">NgajiWir - Deteksi Tajwid</h1>
+                <p class="text-center text-muted mb-4">
+                    Aplikasi deteksi tajwid dalam Al-Qur'an dengan YOLOv8
+                </p>
+
+                {% with messages = get_flashed_messages() %}
+                  {% if messages %}
+                    {% for message in messages %}
+                      <div class="alert alert-warning alert-dismissible fade show flash-message" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+
+                <form action="{{ url_for('detect') }}" method="post" enctype="multipart/form-data" id="upload-form">
+                    <div class="upload-area" id="drop-area">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <p class="drop-text">Drag & drop gambar di sini atau klik untuk memilih</p>
+                        <p class="text-muted">Format yang didukung: JPG, JPEG, PNG</p>
+                        <input type="file" name="file" id="file-input" style="display: none;" accept=".jpg,.jpeg,.png">
+                    </div>
+                    
+                    <p class="file-selected" id="file-selected">File dipilih: <span id="file-name"></span></p>
+                    
+                    <div class="text-center">
+                        <img id="preview-image" src="#" alt="Preview">
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-submit" disabled id="submit-btn">
+                            <i class="fas fa-search me-2"></i>Deteksi Tajwid
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="footer">
+                <p>&copy; 2025 NgajiWir - Deteksi Tajwid dengan YOLOv8</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const fileSelected = document.getElementById('file-selected');
+        const fileName = document.getElementById('file-name');
+        const previewImage = document.getElementById('preview-image');
+        const submitBtn = document.getElementById('submit-btn');
+
+        // Klik pada area upload
+        dropArea.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // Drag & drop events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            dropArea.style.backgroundColor = '#f0fff0';
+            dropArea.style.borderColor = '#1e7e34';
+        }
+
+        function unhighlight() {
+            dropArea.style.backgroundColor = '';
+            dropArea.style.borderColor = '#28a745';
+        }
+
+        // Handle dropped files
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            updateFileInfo();
+        }
+
+        // Handle selected files
+        fileInput.addEventListener('change', updateFileInfo);
+
+        function updateFileInfo() {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                fileName.textContent = file.name;
+                fileSelected.style.display = 'block';
+                
+                // Enable submit button
+                submitBtn.disabled = false;
+                
+                // Preview image
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                fileSelected.style.display = 'none';
+                previewImage.style.display = 'none';
+                submitBtn.disabled = true;
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
